@@ -1,0 +1,90 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	
+	"Parameters": {
+		"vpcId" : {
+			"Type" : "AWS::EC2::VPC::Id",
+			"Description" : "VPC to Deploy Threat Manager"
+			},
+		"subnetid" : {
+			"Type": "AWS::EC2::Subnet::Id",
+			 "Description": "Public Subnet for deployment" 
+			 },
+		"instanceType": {
+				"Type": "String",
+				"Description": "EC2 Instance Type Threat Manager will be spun up as.",
+				"Default": "c3.xlarge",
+				"AllowedValues": [
+					"c3.large", "c3.xlarge", "c3.2xlarge", "c4.large", "c4.xlarge", "c4.2xlarge"
+				]
+			},
+		"monitoringCIDR": {
+				"Type": "String",
+				"Default": "10.0.0.0/16",
+				"Description": "CIDR netblock to be monitored. (Where agents will be installed)"
+			}
+		},
+	
+	"Mappings" : {
+		"RegionMap" : {
+			"us-east-1" : { "64" : "ami-23585b49"},
+			"us-east-2" : { "64" : "ami-b53f65d0"},
+			"ap-southeast-1" : { "64" : "ami-9e13d8fd"},
+			"ap-southeast-2" : { "64" : "ami-9e13d8fd"},
+			"ap-south-1" : { "64" : "ami-f97c0996"},
+			"eu-west-1" : { "64" : "ami-76ca4f05"},
+			"eu-west-2" : { "64" : "ami-40607524"},
+			"sa-east-1" : { "64" : "ami-1438b578"},
+			"ca-central-1" : { "64" : "ami-8345f7e7"},
+			"us-west-2" : { "64" : "ami-951af3f5"},
+			"us-west-1" : { "64" : "ami-f6601296"},
+			"eu-central-1" : { "64" : "ami-3430d75b"},
+			"ap-northeast-1" : { "64" : "ami-98ede6f6"}
+			}
+		},
+		
+	
+	"Resources" : { 
+				"EIPAllocation" : {
+					"Type" : "AWS::EC2::EIP",
+						"Properties" : {
+							"InstanceId" : { "Ref" : "TMCinstace" },
+							"Domain" : { "Ref" : "vpcId" }
+						}
+				},
+				"TMCSecurityGroup" : {
+					"Type" : "AWS::EC2::SecurityGroup",
+						"Properties" : {
+							"GroupDescription" : "Enable required access to TMC",
+							"SecurityGroupIngress" :  [
+								{"IpProtocol" : "tcp", "FromPort" : "7777", "ToPort" : "7777", "CidrIp" : { "Ref": "monitoringCIDR" } },
+								{"IpProtocol" : "tcp", "FromPort" :	"443", "ToPort" : "443", "CidrIp" : { "Ref": "monitoringCIDR" } },
+								{"IpProtocol" : "tcp", "FromPort" :	"4849", "ToPort" : "4849", "CidrIp" : "185.54.124.0/24" }
+												],
+							"SecurityGroupEgress" : [
+								{"IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "185.54.124.0/24" },
+								{"IpProtocol" : "tcp", "FromPort" : "4138", "ToPort" : "4138", "CidrIp" : "185.54.124.0/24"},
+								{"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"},
+								{"IpProtocol" : "tcp", "FromPort" : "53", "ToPort" : "53", "CidrIp" : "8.8.8.8/32"},
+								{"IpProtocol" : "tcp", "FromPort" : "53", "ToPort" : "53", "CidrIp" : "8.8.4.4/32"}
+							],
+					"VpcId" : { "Ref" : "vpcId" }
+
+					}
+				},
+								
+
+				"TMCinstace" : {
+					"Type" : "AWS::EC2::Instance",
+						"Properties" : {
+							"InstanceType" : { "Ref": "instanceType" },
+							"SecurityGroupIds" : [{ "Ref": "TMCSecurityGroup" }],
+							"ImageId" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "64"]},
+							"Tags" : [ { "Key" : "Name", "Value" : "TMC" } ],
+							"SubnetId": { "Ref": "subnetid" }
+						}
+				}
+	
+	}
+	
+}
